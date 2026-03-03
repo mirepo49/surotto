@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coral Slot Extreme | hirotayuki</title>
+    <style>
+        :root {
+            --ocean-dark: #004466;
+            --coral-main: #ff7f50;
+            --gold: #ffd700;
+        }
+
+        body {
+            background: var(--ocean-dark);
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            transition: background 1s;
+        }
+
+        /* 確変中の背景 */
+        body.fever-mode {
+            background: linear-gradient(180deg, #b31217 0%, #3d0000 100%);
+        }
+
+        .game-panel {
+            position: relative;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 40px;
+            border: 8px solid var(--coral-main);
+            text-align: center;
+            z-index: 10;
+        }
+
+        .status-badge {
+            background: #fff;
+            color: #333;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            display: inline-block;
+        }
+
+        .reels {
+            display: flex;
+            gap: 10px;
+            background: #000;
+            padding: 15px;
+            border-radius: 10px;
+        }
+
+        .reel {
+            width: 90px;
+            height: 120px;
+            background: white;
+            border-radius: 8px;
+            font-size: 4rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: transform 0.1s;
+        }
+
+        .reel.spinning {
+            animation: shake 0.1s infinite;
+        }
+
+        .reel.reach {
+            border: 4px solid var(--gold);
+            background: #fff9e6;
+        }
+
+        @keyframes shake {
+            0% { transform: translateY(-2px); }
+            100% { transform: translateY(2px); }
+        }
+
+        /* カットイン演出 */
+        #cut-in {
+            position: absolute;
+            top: 50%;
+            left: -100%;
+            width: 100%;
+            background: rgba(255, 215, 0, 0.8);
+            color: black;
+            font-weight: bold;
+            font-size: 2rem;
+            padding: 10px 0;
+            transform: translateY(-50%);
+            white-space: nowrap;
+            z-index: 100;
+            display: none;
+        }
+
+        .animate-cutin {
+            display: block !important;
+            animation: slideIn 1.5s forwards;
+        }
+
+        @keyframes slideIn {
+            0% { left: -100%; }
+            50% { left: 0%; }
+            100% { left: 100%; }
+        }
+
+        .controls { margin-top: 25px; }
+        button {
+            background: var(--coral-main);
+            color: white;
+            border: none;
+            padding: 15px 50px;
+            font-size: 1.5rem;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 5px 0 #d45d35;
+        }
+
+        button:active { transform: translateY(3px); box-shadow: none; }
+        button:disabled { background: #555; box-shadow: none; }
+
+        .bubble {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.4);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="cut-in">🪸🪸🪸 激アツ！！ 🪸🪸🪸</div>
+
+    <div class="game-panel">
+        <div id="mode-text" class="status-badge">通常モード</div>
+        <div class="reels">
+            <div id="r1" class="reel">🐚</div>
+            <div id="r2" class="reel">🐚</div>
+            <div id="r3" class="reel">🐚</div>
+        </div>
+        <div class="controls">
+            <button id="spin-btn">SPIN</button>
+        </div>
+        <h2 id="msg">...</h2>
+    </div>
+
+    <script>
+        const symbols = ['🪸', '🐠', '🐚', '🐙', '🐢', '💎'];
+        let isFever = false;
+        const btn = document.getElementById('spin-btn');
+        const msg = document.getElementById('msg');
+        const rElements = [document.getElementById('r1'), document.getElementById('r2'), document.getElementById('r3')];
+
+        // 泡生成
+        setInterval(() => {
+            const b = document.createElement('div');
+            b.className = 'bubble';
+            const size = Math.random() * 20 + 5 + 'px';
+            b.style.width = size; b.style.height = size;
+            b.style.left = Math.random() * 100 + 'vw';
+            b.style.bottom = '-20px';
+            document.body.appendChild(b);
+            const anim = b.animate([{bottom: '-20px', opacity: 1}, {bottom: '110vh', opacity: 0}], {duration: 3000 + Math.random() * 2000});
+            anim.onfinish = () => b.remove();
+        }, 300);
+
+        btn.onclick = async () => {
+            btn.disabled = true;
+            msg.textContent = "";
+            const isAtsu = Math.random() < 0.2; // 20%で激アツ予告
+
+            // 予告演出
+            if (isAtsu) {
+                document.getElementById('cut-in').classList.add('animate-cutin');
+                await new Promise(r => setTimeout(r, 1500));
+                document.getElementById('cut-in').classList.remove('animate-cutin');
+            }
+
+            // スピン開始
+            let results = [0, 0, 0];
+            const spinTimes = [1000, 2000, 3500];
+            
+            // 当たり判定 (確変中は確率UP)
+            const winRate = isFever ? 0.4 : 0.08; 
+            const isWin = Math.random() < winRate;
+            const winSymbol = symbols[Math.floor(Math.random() * symbols.length)];
+
+            // リール停止処理
+            for (let i = 0; i < 3; i++) {
+                rElements[i].classList.add('spinning');
+                const startTime = Date.now();
+                
+                while (Date.now() - startTime < spinTimes[i]) {
+                    rElements[i].textContent = symbols[Math.floor(Math.random() * symbols.length)];
+                    await new Promise(r => setTimeout(r, 80));
+                    
+                    // リーチ演出チェック (2つ目が止まる時)
+                    if (i === 1 && rElements[0].textContent === rElements[1].textContent) {
+                        rElements[2].classList.add('reach');
+                        msg.textContent = "REACH!!!";
+                        spinTimes[2] = 5000; // 3つ目のスピンを長くして焦らす
+                    }
+                }
+                
+                rElements[i].classList.remove('spinning');
+                if (isWin) {
+                    rElements[i].textContent = winSymbol;
+                } else if (i === 2 && rElements[0].textContent === rElements[1].textContent) {
+                    // リーチハズレ
+                    let s; do { s = symbols[Math.floor(Math.random() * symbols.length)]; } while(s === winSymbol);
+                    rElements[2].textContent = s;
+                }
+            }
+
+            // 結果判定
+            const final = rElements.map(e => e.textContent);
+            rElements[2].classList.remove('reach');
+
+            if (final[0] === final[1] && final[1] === final[2]) {
+                if (final[0] === '💎') {
+                    isFever = true;
+                    document.body.classList.add('fever-mode');
+                    document.getElementById('mode-text').textContent = "🔥 確変モード突入！";
+                    msg.textContent = "超絶大当たり！！！";
+                } else {
+                    isFever = false;
+                    document.body.classList.remove('fever-mode');
+                    document.getElementById('mode-text').textContent = "通常モード";
+                    msg.textContent = "大当たり！";
+                }
+            } else {
+                msg.textContent = "ざんねん！";
+            }
+            btn.disabled = false;
+        };
+    </script>
+</body>
+</html>
